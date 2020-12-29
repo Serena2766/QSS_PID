@@ -1,10 +1,10 @@
 /**
-* By: Ben Earle and Kyle Bjornson
-* ARSLab - Carleton University
+* Mengyao Wu
+* Carleton University
 *
-* Analog Input:
-* Model to interface with a analog Input pin for Embedded Cadmium.
+* Top model for PID
 */
+
 #include <iostream>
 #include <chrono>
 #include <algorithm>
@@ -24,18 +24,26 @@
 #include <cadmium/io/iestream.hpp>
 
 
-#include <cadmium/real_time/arm_mbed/io/digitalInput.hpp>
-#include <cadmium/real_time/arm_mbed/io/digitalOutput.hpp>
+#include <cadmium/real_time/arm_mbed/io/analogInput.hpp>
+#include <cadmium/real_time/arm_mbed/io/pwmOutput.hpp>
 
-#include "../atomics/blinky.hpp"
+
 
 #ifdef RT_ARM_MBED
   #include "../mbed.h"
+  Serial pc(SERIAL_TX,SERIAL_RX);
 #else
   // When simulating the model it will use these files as IO in place of the pins specified.
-  const char* BUTTON1 = "./inputs/BUTTON1_In.txt";
-  const char* LED1    = "./outputs/LED1_Out.txt";
+  const char* A1 = "./inputs/MEASURED_In.txt";
+  const char* A2 = "./inputs/DESIRED_In.txt";
+  const char* A3 = "./inputs/TUNE_P_In.txt";
+  const char* A4 = "./inputs/TUNE_D_In.txt";
+  const char* D3    = "./outputs/PID_Out.txt";
 #endif
+
+
+#include "../../atomics/pidController.hpp"
+
 
 using namespace std;
 
@@ -56,7 +64,7 @@ int main(int argc, char ** argv) {
     // all simulation timing and I/O streams are ommited when running embedded
     auto start = hclock::now(); //to measure simulation execution time
 
-    static std::ofstream out_data("blinky_test_output.txt");
+    static std::ofstream out_data("pid_test_output.txt");
     struct oss_sink_provider{
       static std::ostream& sink(){
         return out_data;
@@ -74,8 +82,11 @@ int main(int argc, char ** argv) {
   using local_time=cadmium::logger::logger<cadmium::logger::logger_local_time, cadmium::dynamic::logger::formatter<TIME>, oss_sink_provider>;
   using log_all=cadmium::logger::multilogger<info, debug, state, log_messages, routing, global_time, local_time>;
 
-  using logger_top=cadmium::logger::multilogger<log_messages, global_time>;
-
+  #ifdef RT_ARM_MBED
+    using logger_top=cadmium::logger::multilogger<global_time>;
+  #else
+    using logger_top=cadmium::logger::multilogger<log_messages,global_time>;
+  #endif
 
   /*******************************************/
 
@@ -83,20 +94,23 @@ int main(int argc, char ** argv) {
   using CoupledModelPtr=std::shared_ptr<cadmium::dynamic::modeling::coupled<TIME>>;
 
   /********************************************/
-  /***************** blinky *******************/
+  /***************** pidController *******************/
   /********************************************/
 
-  AtomicModelPtr blinky1 = cadmium::dynamic::translate::make_dynamic_atomic_model<Blinky, TIME>("blinky1");
+  AtomicModelPtr pidController1 = cadmium::dynamic::translate::make_dynamic_atomic_model<PidController, TIME>("pidController1");
 
   /********************************************/
-  /********** DigitalInput1 *******************/
+  /********** Measured,Desired, TuneD, TuneP*******************/
   /********************************************/
-  AtomicModelPtr digitalInput1 = cadmium::dynamic::translate::make_dynamic_atomic_model<DigitalInput, TIME>("digitalInput1", BUTTON1);
+  AtomicModelPtr Measured1 = cadmium::dynamic::translate::make_dynamic_atomic_model<AnalogInput, TIME>("Measured1", A1);
+  AtomicModelPtr Desired1 = cadmium::dynamic::translate::make_dynamic_atomic_model<AnalogInput, TIME>("Desired1", A2);
+  AtomicModelPtr TuneP1 = cadmium::dynamic::translate::make_dynamic_atomic_model<AnalogInput, TIME>("TuneP1", A3);
+  AtomicModelPtr TuneD1 = cadmium::dynamic::translate::make_dynamic_atomic_model<AnalogInput, TIME>("TuneD1", A4);
 
   /********************************************/
-  /********* DigitalOutput1 *******************/
+  /********* pid Out *******************/
   /********************************************/
-  AtomicModelPtr digitalOutput1 = cadmium::dynamic::translate::make_dynamic_atomic_model<DigitalOutput, TIME>("digitalOutput1", LED1);
+  AtomicModelPtr pidOut1 = cadmium::dynamic::translate::make_dynamic_atomic_model<PwmOutput, TIME>("pidOut1", D3);
 
 
   /************************/
@@ -104,12 +118,15 @@ int main(int argc, char ** argv) {
   /************************/
   cadmium::dynamic::modeling::Ports iports_TOP = {};
   cadmium::dynamic::modeling::Ports oports_TOP = {};
-  cadmium::dynamic::modeling::Models submodels_TOP =  {blinky1, digitalOutput1, digitalInput1};
+  cadmium::dynamic::modeling::Models submodels_TOP =  {pidController1, Measured1, Desired1,TuneP1, TuneD1,pidOut1};
   cadmium::dynamic::modeling::EICs eics_TOP = {};
   cadmium::dynamic::modeling::EOCs eocs_TOP = {};
   cadmium::dynamic::modeling::ICs ics_TOP = {
-    cadmium::dynamic::translate::make_IC<blinky_defs::dataOut, digitalOutput_defs::in>("blinky1","digitalOutput1"),
-    cadmium::dynamic::translate::make_IC<digitalInput_defs::out, blinky_defs::in>("digitalInput1", "blinky1")
+    cadmium::dynamic::translate::make_IC<analogInput_defs::out, pidController_defs::measured>("Measured1", "pidController1"),
+    cadmium::dynamic::translate::make_IC<analogInput_defs::out, pidController_defs::desired>("Desired1", "pidController1"),
+    cadmium::dynamic::translate::make_IC<analogInput_defs::out, pidController_defs::tuneP>("TuneP1", "pidController1"),
+    cadmium::dynamic::translate::make_IC<analogInput_defs::out, pidController_defs::tuneD>("TuneD1", "pidController1"),
+    cadmium::dynamic::translate::make_IC<pidController_defs::out, pwmOutput_defs::in>("pidController1", "pidOut1"),
   };
   CoupledModelPtr TOP = std::make_shared<cadmium::dynamic::modeling::coupled<TIME>>(
     "TOP",
@@ -123,8 +140,10 @@ int main(int argc, char ** argv) {
 
   ///****************////
   cadmium::dynamic::engine::runner<NDTime, logger_top> r(TOP, {0});
-  r.run_until(NDTime("00:10:00:000"));
-  #ifndef RT_ARM_MBED
+  #ifdef RT_ARM_MBED
+    r.run_until(NDTime("00:10:00:000"));
+  #else
+    r.run_until(NDTime("00:00:00:100"));
     return 0;
   #endif
 }
