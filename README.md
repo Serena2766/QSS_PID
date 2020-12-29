@@ -97,7 +97,7 @@ First simulation is for PID, second one is for QSS.
 
 If your target platform *is not* the Nucleo-STM32F401, you will need to change the COMPILE_TARGET / FLASH_TARGET in the make file.
 
-> cd RT-Cadmium-QSS-PID/qss_top_model
+> cd QSS_PID/qss_top_model
 
 > make clean; make embedded; 
 > make flash; (not necessary, you can simply locate the bin file in BUILD directory and drag it to the target board folder)
