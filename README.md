@@ -4,7 +4,7 @@ See QSS_PID_RT_DEVS_project_report.pdf SECTION 3 "Model Specification" for a com
 
 ### REAL TIME CADMIUM INSTALL ###
 
-In current folder (RT-Cadmium-QSS-PID), make ensure you download the MBed submodules:
+In current folder (QSS_PID), make ensure you download the MBed submodules:
 
 > git submodule update --init --recursive
 
@@ -52,11 +52,11 @@ First simulation is for PID, second one is for QSS.
 	    └── qss_test_output.txt
 
     ### PID SIMULATIONS ###
-    > cd RT-Cadmium-QSS-PID/TESTS/pid_top_model
+    > cd QSS_PID/TESTS/pid_top_model
     > make clean; make all
     > ./PID_TOP
 
-    This will run the standard Cadmium simulator. Cadmium logs will be generated in RT-Cadmium-QSS-PID/TESTS/pid_top_model/outputs/PID_Out.txt
+    This will run the standard Cadmium simulator. Cadmium logs will be generated in QSS_PID/TESTS/pid_top_model/outputs/PID_Out.txt
     Input can be changed in the files as below:
     
         inputs/
@@ -69,7 +69,7 @@ First simulation is for PID, second one is for QSS.
 
 
     ### QSS SIMULATIONS ###
-    > cd RT-Cadmium-QSS-PID/TESTS/qss_top_model
+    > cd QSS_PID/TESTS/qss_top_model
     > make clean;make all
     
     Optional step: modify qssVisualizer.py function inputGenerator to generate desired sample points into ANALOG_In.txt file.
