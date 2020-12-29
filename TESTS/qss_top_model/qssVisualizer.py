@@ -19,8 +19,8 @@ def inputGenerator(x):
         # return math.sin(100) - math.cos(200) + math.log(x)
     
     #return (3*x*x*x)/(200*200*200) - (x*x)/(100*100)
-    return (x*x)/(100.0*100.0)
-    #return math.sin(6.29*x/100)
+    #return (x*x)/(100.0*100.0)
+    return math.sin(6.29*x/100)
 
 
 def writeToInputFile():
