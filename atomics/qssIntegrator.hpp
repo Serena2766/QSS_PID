@@ -47,10 +47,10 @@ using namespace std;
 
             int qssMode;// 1 for QSS1, 2 for QSS2
             // default constructor
-            QssIntegrator() noexcept{
+            QssIntegrator(int mode = 1) noexcept{
               sigma = std::numeric_limits<TIME>::infinity();
               
-              qssMode = 1;//should be passed as constructor arguement
+              qssMode = mode;//should be passed as constructor arguement
               
               state.currentLevel = 0;
               state.integratorInput = 0;
@@ -86,34 +86,72 @@ using namespace std;
                 {
                     if (state.integratorInput < 0)
                     {
-                        state.currentLevel -= 1;
+                        state.currentLevel -= quantum;
                         assert(state.currentLevel > -FLOAT_MIN && \
                                "currentLevel cannot below 0\n");
                     }
                     else
                     {
-                        state.currentLevel += 1;
+                        state.currentLevel += quantum;
                         assert(state.currentLevel < (numOfLevels + FLOAT_MIN) && \
                                "currentLevel cannot be above numOfLevels\n");
                     }
                     
-                    //solve for next t: integratorInput * t = quantum
-                    //t = quantum/integratorInput, quantum = 1 relative to numOfLevels
-                    // default reference unit time is 1 second
-                    float tempT = quantum/abs(state.integratorInput);
+                    float tempT = 0.0;
+                    
+                    if (qssMode == 1)
+                    {
+                        //solve for next t: integratorInput * t = quantum
+                        //t = quantum/integratorInput, quantum = 1 relative to numOfLevels
+                        // default reference unit time is 1 second
+                        tempT = quantum/abs(state.integratorInput);                        
+                    }
+                    else if (qssMode == 2)
+                    {
+                        //0.5 * integratorInput * t^2 = quantum
+                        // t = sqrt((2*quantum)/integratorInput)
+                        tempT = sqrt((2*quantum)/abs(state.integratorInput)); 
+                    }
+                    else
+                    {
+                        assert("Order higher than 2 not implemented\n");
+                    }
+                    
                     std::string timeStr;
                     
                     if (tempT < 1.0)
                     {
                         int ms = (int)(1000*tempT + 0.5);
-                        timeStr = "00:00:00:" + std::to_string(ms);
+                        int sec = 0;
+                        
+                        if (ms == 1000)
+                        {
+                            sec += 1;
+                            ms = 0;
+                        }
+                        
+                        timeStr = "00:00:" + std::to_string(sec) + ":" + std::to_string(ms);
                     }
                     //the resolution of input U cannot be less than 1/10 of the quantum 1
                     // if it reaches stable state, time should be infinity set above
                     else if (tempT >= 1.0 && tempT < (10 + FLOAT_MIN))
                     {
-                        int sec = (int)(tempT + 0.5);
-                        timeStr = "00:00:" + std::to_string(sec);            
+                        
+                        float intPart = 0, fracPart = 0;
+                        
+                        fracPart = modf(tempT, &intPart);
+                        
+                        int ms = (int)(1000*fracPart + 0.5);
+                        int sec = (int)(intPart + 0.5);
+                        
+                        if (ms == 1000)
+                        {
+                            sec += 1;
+                            ms = 0;
+                        }
+                        
+                        timeStr = "00:00:" + std::to_string(sec) + ":" + std::to_string(ms);
+                        
                     }
                     else
                     {

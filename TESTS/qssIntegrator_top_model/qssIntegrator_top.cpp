@@ -95,8 +95,8 @@ int main(int argc, char ** argv) {
   /********************************************/
   /***************** qssIntegrator *******************/
   /********************************************/
-
-  AtomicModelPtr qssIntegrator1 = cadmium::dynamic::translate::make_dynamic_atomic_model<QssIntegrator, TIME>("qssIntegrator1");
+  #define QSS_ORDER 1
+  AtomicModelPtr qssIntegrator1 = cadmium::dynamic::translate::make_dynamic_atomic_model<QssIntegrator, TIME>("qssIntegrator1",QSS_ORDER);
 
 
   /********************************************/
